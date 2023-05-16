@@ -109,16 +109,31 @@ const searchTermWizard = new Scenes.WizardScene(
       return await ctx.scene.leave();
     }
     let newTerms = ctx.message.text.split("\n");
+    newTerms.map((i, index) => {
+      newTerms[index] = i.trim();
+    });
     let terms = await prisma.searchTerms.findMany();
     let termsToRemove = terms.filter((x) => !newTerms.includes(x.text));
+    let termsToAdd = [];
+
+    newTerms.map((item) => {
+      let found = false;
+      terms.map((x) => {
+        if (x.text == item) found = true;
+      });
+      if (!found) termsToAdd.push(item);
+    });
     // console.log("termsToRemove", termsToRemove);
     if (termsToRemove.length > 0) {
       await prisma.searchTerms.deleteMany({
         where: { id: { in: termsToRemove.map((x) => x.id) } },
       });
     }
+    for (let term of termsToAdd) {
+      await prisma.searchTerms.create({ data: { text: term } });
+    }
     await ctx.reply(
-      `${termsToRemove.length} مورد حذف شد`,
+      `${termsToRemove.length} مورد حذف شد\r\n${termsToAdd.length} مورد اضافه شد`,
       Markup.keyboard([["🔍 لیست جستحو"]])
         .oneTime()
         .resize()
@@ -134,6 +149,14 @@ bot.hears("🔍 لیست جستحو", async (ctx) => {
   if (ctx.message.from.id == process.env.ADMIN_ID)
     await ctx.scene.enter("SEARCH_TERM_WIZARD");
   else await ctx.reply("شما به این بخش دسترسی ندارید");
+});
+bot.hears("❌ لغو", async (ctx) => {
+  await ctx.reply(
+    "آپدیت لیست لغو شد",
+    Markup.keyboard([["🔍 لیست جستحو"]])
+      .oneTime()
+      .resize()
+  );
 });
 bot.launch();
 console.log("bot launched");
